@@ -1,0 +1,57 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+pnpm-error.log*
+
+# Dependency directories
+node_modules/
+pnpm-lock.yaml
+
+# Build artifacts
+dist/
+build/
+.vite/
+
+# Editor directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.bak
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# macOS
+.DS_Store
+
+# Thumbnails
+.thumbnails
+
+# Windows
+Thumbs.db
+
+# Vercel
+.vercel/
+
+# Python (ensure these are not present if this is purely frontend)
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Other
+*.swp
+*.swo
+
+
