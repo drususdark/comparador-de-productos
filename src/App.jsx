@@ -4,12 +4,15 @@ import { Input } from '@/components/ui/input.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Upload, Search, Filter, FileSpreadsheet } from 'lucide-react'
+import { Upload, Search, Filter, FileSpreadsheet, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle, BarChart3, Users, Package, FolderOpen } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import { Checkbox } from '@/components/ui/checkbox.jsx'
 import { Label } from '@/components/ui/label.jsx'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group.jsx'
+import { Slider } from '@/components/ui/slider.jsx'
+import { Progress } from '@/components/ui/progress.jsx'
+import './App.css'
 
 function App() {
   const [files, setFiles] = useState([])
@@ -18,12 +21,12 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [stockFilter, setStockFilter] = useState('all')
-  const [allProductsData, setAllProductsData] = useState([]) // Stores all processed data from all files
-  const [products, setProducts] = useState([]) // Filtered products for display
+  const [allProductsData, setAllProductsData] = useState([])
+  const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [summary, setSummary] = useState(null)
-  const [percentageInput, setPercentageInput] = useState('')
-  const [applyScope, setApplyScope] = useState('selected') // 'selected', 'category', 'all'
+  const [percentageInput, setPercentageInput] = useState(25)
+  const [applyScope, setApplyScope] = useState('selected')
   const [selectedProducts, setSelectedProducts] = useState(new Set())
 
   // Function to process a single Excel file
@@ -44,8 +47,8 @@ function App() {
       'Costo U.C.': 'costo_unitario',
       'Costo neto': 'costo_neto',
       'Precio de Venta': 'precio_venta',
-      'Precio Sugerido': 'precio_sugerido_excel', // Original suggested price from Excel
-      'Porcentaje de Venta': 'porcentaje_venta_excel', // Original percentage from Excel
+      'Precio Sugerido': 'precio_sugerido_excel',
+      'Porcentaje de Venta': 'porcentaje_venta_excel',
       'Familia': 'categoria'
     };
 
@@ -69,14 +72,14 @@ function App() {
       if (product.costo_neto > 0) {
         product.porcentaje_ganancia_actual = ((product.precio_venta - product.costo_neto) / product.costo_neto) * 100;
       } else {
-        product.porcentaje_ganancia_actual = 0; // Or handle as appropriate
+        product.porcentaje_ganancia_actual = 0;
       }
 
-      // Initialize suggested price with current price, will be updated by user input
+      // Initialize suggested price with current price
       product.precio_sugerido_calculado = product.precio_venta;
 
       return product;
-    }).filter(p => p.codigo && p.nombre); // Filter out rows without essential data
+    }).filter(p => p.codigo && p.nombre);
 
     return standardizedData;
   };
@@ -117,8 +120,8 @@ function App() {
           nombre: product.nombre,
           categoria: product.categoria,
           locales: {},
-          precio_sugerido_calculado: product.precio_sugerido_calculado, // Keep track of calculated suggested price
-          porcentaje_ganancia_actual: product.porcentaje_ganancia_actual // Keep track of current percentage
+          precio_sugerido_calculado: product.precio_sugerido_calculado,
+          porcentaje_ganancia_actual: product.porcentaje_ganancia_actual
         };
       }
       resultsDict[codigo].locales[product.local] = {
@@ -199,7 +202,6 @@ function App() {
     const dataForExcel = [];
     const locals = summary ? summary.locals : [];
 
-    // Create header row dynamically based on available locals
     let headerRow = ['Código', 'Nombre', 'Categoría'];
     locals.forEach(local => {
       headerRow.push(`${local} Stock`);
@@ -210,7 +212,6 @@ function App() {
     headerRow.push('Precio Sugerido Calculado');
     dataForExcel.push(headerRow);
 
-    // Add product data
     products.forEach(product => {
       let row = [
         product.codigo,
@@ -224,7 +225,7 @@ function App() {
           row.push(localData.costo_neto);
           row.push(localData.precio_venta);
         } else {
-          row.push('-', '-', '-'); // No data for this local
+          row.push('-', '-', '-');
         }
       });
       row.push(product.porcentaje_ganancia_actual?.toFixed(2) + '%');
@@ -238,15 +239,11 @@ function App() {
 
     const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const data = new Blob([excelBuffer], { type: 'application/octet-stream' });
-    saveAs(data, 'comparacion_precios.muevos.xlsx');
-  };
-
-  const handlePercentageChange = (e) => {
-    setPercentageInput(e.target.value);
+    saveAs(data, 'comparacion_precios_mejorado.xlsx');
   };
 
   const applyPercentage = () => {
-    const percentage = parseFloat(percentageInput);
+    const percentage = percentageInput;
     if (isNaN(percentage)) {
       alert('Por favor, ingresa un porcentaje válido.');
       return;
@@ -270,7 +267,7 @@ function App() {
     });
 
     setAllProductsData(updatedAllProductsData);
-    applyFiltersAndSearch(); // Re-apply filters to update displayed products
+    applyFiltersAndSearch();
   };
 
   const toggleProductSelection = (codigo) => {
@@ -285,48 +282,125 @@ function App() {
     });
   };
 
+  const getGainIndicator = (percentage) => {
+    if (percentage >= 30) return { icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' };
+    if (percentage >= 10) return { icon: Minus, color: 'text-yellow-600', bg: 'bg-yellow-50' };
+    return { icon: TrendingDown, color: 'text-red-600', bg: 'bg-red-50' };
+  };
+
+  const getStockIndicator = (stock) => {
+    if (stock > 10) return { color: 'text-green-600', bg: 'bg-green-100' };
+    if (stock > 0) return { color: 'text-yellow-600', bg: 'bg-yellow-100' };
+    return { color: 'text-red-600', bg: 'bg-red-100' };
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Comparador de Precios
-          </h1>
-          <p className="text-gray-600">
-            Compara precios de productos entre múltiples locales y analiza ganancias
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="p-3 bg-blue-600 rounded-xl">
+              <BarChart3 className="h-8 w-8 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Comparador de Precios
+            </h1>
+          </div>
+          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+            Analiza y compara precios entre múltiples locales para optimizar tu estrategia de precios y maximizar ganancias
           </p>
         </div>
 
+        {/* Summary Cards */}
+        {summary && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-100 text-sm font-medium">Total Productos</p>
+                    <p className="text-3xl font-bold">{summary.total_products}</p>
+                  </div>
+                  <Package className="h-8 w-8 text-blue-200" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-green-500 to-green-600 text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-100 text-sm font-medium">Locales</p>
+                    <p className="text-3xl font-bold">{summary.locals.length}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-green-200" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-100 text-sm font-medium">Categorías</p>
+                    <p className="text-3xl font-bold">{summary.categories.length}</p>
+                  </div>
+                  <FolderOpen className="h-8 w-8 text-purple-200" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-orange-100 text-sm font-medium">Archivos</p>
+                    <p className="text-3xl font-bold">{summary.files_processed}</p>
+                  </div>
+                  <FileSpreadsheet className="h-8 w-8 text-orange-200" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* File Upload Section */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
+        <Card className="mb-8 border-0 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 rounded-t-lg">
+            <CardTitle className="flex items-center gap-3 text-slate-800">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Upload className="h-5 w-5 text-blue-600" />
+              </div>
               Cargar Archivos Excel
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
+          <CardContent className="p-6">
+            <div className="space-y-6">
+              <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-blue-400 transition-colors">
+                <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
                 <Input
                   type="file"
                   multiple
                   accept=".xlsx,.xls"
                   onChange={handleFileChange}
-                  className="mb-2"
+                  className="mb-4 max-w-md mx-auto"
                 />
-                <p className="text-sm text-gray-500">
-                  Selecciona uno o más archivos Excel (.xlsx, .xls)
+                <p className="text-slate-600">
+                  Arrastra y suelta archivos Excel aquí, o haz clic para seleccionar
+                </p>
+                <p className="text-sm text-slate-500 mt-2">
+                  Formatos soportados: .xlsx, .xls
                 </p>
               </div>
               
               {files.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium mb-2">Archivos seleccionados:</p>
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <p className="font-medium text-slate-800 mb-3">Archivos seleccionados:</p>
                   <div className="flex flex-wrap gap-2">
                     {files.map((file, index) => (
-                      <Badge key={index} variant="secondary">
+                      <Badge key={index} variant="secondary" className="px-3 py-1">
+                        <FileSpreadsheet className="h-3 w-3 mr-1" />
                         {file.name}
                       </Badge>
                     ))}
@@ -337,37 +411,41 @@ function App() {
               <Button 
                 onClick={handleUpload} 
                 disabled={isLoading || files.length === 0}
-                className="w-full"
+                className="w-full h-12 text-lg font-medium bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               >
-                {isLoading ? 'Procesando...' : 'Cargar y Procesar Archivos'}
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Procesando archivos...
+                  </div>
+                ) : (
+                  'Cargar y Procesar Archivos'
+                )}
               </Button>
 
-              {uploadStatus && (
-                <div className={`p-3 rounded-md ${
-                  uploadStatus.type === 'success' 
-                    ? 'bg-green-50 text-green-800 border border-green-200' 
-                    : 'bg-red-50 text-red-800 border border-red-200'
-                }`}>
-                  {uploadStatus.message}
+              {isLoading && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm text-slate-600">
+                    <span>Procesando archivos...</span>
+                    <span>75%</span>
+                  </div>
+                  <Progress value={75} className="h-2" />
                 </div>
               )}
 
-              {summary && (
-                <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
-                  <h3 className="font-medium text-blue-900 mb-2">Resumen de datos cargados:</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <span className="font-medium">Productos:</span> {summary.total_products}
-                    </div>
-                    <div>
-                      <span className="font-medium">Locales:</span> {summary.locals.length}
-                    </div>
-                    <div>
-                      <span className="font-medium">Categorías:</span> {summary.categories.length}
-                    </div>
-                    <div>
-                      <span className="font-medium">Archivos:</span> {summary.files_processed}
-                    </div>
+              {uploadStatus && (
+                <div className={`p-4 rounded-lg border ${
+                  uploadStatus.type === 'success' 
+                    ? 'bg-green-50 text-green-800 border-green-200' 
+                    : 'bg-red-50 text-red-800 border-red-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {uploadStatus.type === 'success' ? (
+                      <CheckCircle className="h-5 w-5" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5" />
+                    )}
+                    {uploadStatus.message}
                   </div>
                 </div>
               )}
@@ -377,32 +455,38 @@ function App() {
 
         {/* Search and Filters Section */}
         {summary && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
+          <Card className="mb-8 border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 rounded-t-lg">
+              <CardTitle className="flex items-center gap-3 text-slate-800">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Search className="h-5 w-5 text-green-600" />
+                </div>
                 Búsqueda y Filtros
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">
                     Buscar producto
-                  </label>
-                  <Input
-                    placeholder="Código o nombre del producto..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                  </Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Código o nombre del producto..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 h-11"
+                    />
+                  </div>
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium mb-2">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">
                     Categoría
-                  </label>
+                  </Label>
                   <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11">
                       <SelectValue placeholder="Seleccionar categoría" />
                     </SelectTrigger>
                     <SelectContent>
@@ -416,12 +500,12 @@ function App() {
                   </Select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">
                     Filtro de stock
-                  </label>
+                  </Label>
                   <Select value={stockFilter} onValueChange={setStockFilter}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11">
                       <SelectValue placeholder="Filtrar por stock" />
                     </SelectTrigger>
                     <SelectContent>
@@ -439,161 +523,226 @@ function App() {
 
         {/* Percentage Application Section */}
         {summary && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
+          <Card className="mb-8 border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 rounded-t-lg">
+              <CardTitle className="flex items-center gap-3 text-slate-800">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-purple-600" />
+                </div>
                 Aplicar Porcentaje de Venta Sugerido
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Porcentaje a aplicar (%)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="Ej: 25 (para 25%)"
-                    value={percentageInput}
-                    onChange={handlePercentageChange}
-                  />
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <Label className="text-sm font-medium text-slate-700">
+                      Porcentaje a aplicar: {percentageInput}%
+                    </Label>
+                    <div className="px-4">
+                      <Slider
+                        value={[percentageInput]}
+                        onValueChange={(value) => setPercentageInput(value[0])}
+                        max={100}
+                        min={0}
+                        step={1}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-slate-500 mt-1">
+                        <span>0%</span>
+                        <span>50%</span>
+                        <span>100%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <Label className="text-sm font-medium text-slate-700">
+                      Ámbito de aplicación
+                    </Label>
+                    <RadioGroup value={applyScope} onValueChange={setApplyScope} className="space-y-3">
+                      <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-slate-50">
+                        <RadioGroupItem value="selected" id="selected" />
+                        <Label htmlFor="selected" className="flex-1 cursor-pointer">
+                          Productos seleccionados ({selectedProducts.size})
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-slate-50">
+                        <RadioGroupItem value="category" id="category" />
+                        <Label htmlFor="category" className="flex-1 cursor-pointer">
+                          Categoría actual ({selectedCategory === 'all' ? 'Todas' : selectedCategory})
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-slate-50">
+                        <RadioGroupItem value="all" id="all" />
+                        <Label htmlFor="all" className="flex-1 cursor-pointer">
+                          Todos los productos cargados
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Ámbito de aplicación
-                  </label>
-                  <RadioGroup value={applyScope} onValueChange={setApplyScope} className="flex flex-col space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="selected" id="r1" />
-                      <Label htmlFor="r1">Productos seleccionados</Label>
+
+                <div className="space-y-4">
+                  <div className="bg-slate-50 rounded-lg p-4">
+                    <h4 className="font-medium text-slate-800 mb-3">Vista previa del cálculo</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Costo ejemplo:</span>
+                        <span className="font-mono">$1,000</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Porcentaje aplicado:</span>
+                        <span className="font-mono text-blue-600">{percentageInput}%</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="text-slate-600 font-medium">Precio sugerido:</span>
+                        <span className="font-mono font-bold text-green-600">
+                          ${(1000 * (1 + percentageInput / 100)).toFixed(2)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="category" id="r2" />
-                      <Label htmlFor="r2">Categoría actual ({selectedCategory === 'all' ? 'Todas' : selectedCategory})</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="all" id="r3" />
-                      <Label htmlFor="r3">Todos los productos cargados</Label>
-                    </div>
-                  </RadioGroup>
+                  </div>
+
+                  <Button 
+                    onClick={applyPercentage}
+                    className="w-full h-12 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+                  >
+                    <TrendingUp className="h-5 w-5 mr-2" />
+                    Aplicar Porcentaje
+                  </Button>
                 </div>
               </div>
-              <Button onClick={applyPercentage} className="w-full mt-4">
-                Aplicar Porcentaje
-              </Button>
             </CardContent>
           </Card>
         )}
 
-        {/* Results Section */}
+        {/* Results Table */}
         {summary && (
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-2">
-                  <Filter className="h-5 w-5" />
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-3 text-slate-800">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <BarChart3 className="h-5 w-5 text-orange-600" />
+                  </div>
                   Resultados ({products.length} productos)
                 </CardTitle>
-                
                 {products.length > 0 && (
-                  <div className="flex gap-2">
-                    <Button onClick={exportToExcel} variant="outline" size="sm">
-                      <FileSpreadsheet className="h-4 w-4 mr-2" />
-                      Exportar a Excel
-                    </Button>
-                  </div>
+                  <Button onClick={exportToExcel} variant="outline" className="border-slate-300">
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Exportar a Excel
+                  </Button>
                 )}
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               {products.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  {summary ? 'No se encontraron productos con los filtros aplicados' : 'Carga archivos Excel para comenzar'}
+                <div className="text-center py-16">
+                  <Package className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-600 mb-2">
+                    {summary ? 'No se encontraron productos' : 'Carga archivos para comenzar'}
+                  </h3>
+                  <p className="text-slate-500">
+                    {summary ? 'Intenta ajustar los filtros de búsqueda' : 'Selecciona archivos Excel para analizar productos'}
+                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-300">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border border-gray-300 px-4 py-2 text-left">Sel.</th>
-                        <th className="border border-gray-300 px-4 py-2 text-left">Código</th>
-                        <th className="border border-gray-300 px-4 py-2 text-left">Nombre</th>
-                        <th className="border border-gray-300 px-4 py-2 text-left">Categoría</th>
+                  <table className="w-full">
+                    <thead className="bg-slate-100 border-b">
+                      <tr>
+                        <th className="px-4 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
+                          <Checkbox
+                            checked={selectedProducts.size === products.length}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedProducts(new Set(products.map(p => p.codigo)));
+                              } else {
+                                setSelectedProducts(new Set());
+                              }
+                            }}
+                          />
+                        </th>
+                        <th className="px-4 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
+                          Producto
+                        </th>
                         {summary.locals.map(local => (
-                          <th key={local} className="border border-gray-300 px-4 py-2 text-center" colSpan="3">
+                          <th key={local} className="px-4 py-4 text-center text-xs font-medium text-slate-600 uppercase tracking-wider border-l">
                             {local}
                           </th>
                         ))}
-                        <th className="border border-gray-300 px-4 py-2 text-center">% Ganancia Actual</th>
-                        <th className="border border-gray-300 px-4 py-2 text-center">Precio Sugerido</th>
-                      </tr>
-                      <tr className="bg-gray-50">
-                        <th className="border border-gray-300 px-4 py-1"></th>
-                        <th className="border border-gray-300 px-4 py-1"></th>
-                        <th className="border border-gray-300 px-4 py-1"></th>
-                        <th className="border border-gray-300 px-4 py-1"></th>
-                        {summary.locals.map(local => (
-                          <>
-                            <th key={`${local}-stock`} className="border border-gray-300 px-2 py-1 text-xs">Stock</th>
-                            <th key={`${local}-costo`} className="border border-gray-300 px-2 py-1 text-xs">Costo</th>
-                            <th key={`${local}-venta`} className="border border-gray-300 px-2 py-1 text-xs">Venta</th>
-                          </>
-                        ))}
-                        <th className="border border-gray-300 px-4 py-1"></th>
-                        <th className="border border-gray-300 px-4 py-1"></th>
+                        <th className="px-4 py-4 text-center text-xs font-medium text-slate-600 uppercase tracking-wider border-l">
+                          Análisis
+                        </th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {products.map((product, index) => (
-                        <tr key={product.codigo} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="border border-gray-300 px-4 py-2 text-center">
-                            <Checkbox
-                              checked={selectedProducts.has(product.codigo)}
-                              onCheckedChange={() => toggleProductSelection(product.codigo)}
-                            />
-                          </td>
-                          <td className="border border-gray-300 px-4 py-2 font-mono text-sm">
-                            {product.codigo}
-                          </td>
-                          <td className="border border-gray-300 px-4 py-2">
-                            {product.nombre}
-                          </td>
-                          <td className="border border-gray-300 px-4 py-2">
-                            <Badge variant="outline">{product.categoria}</Badge>
-                          </td>
-                          {summary.locals.map(local => {
-                            const localData = product.locales[local];
-                            return localData ? (
-                              <>
-                                <td key={`${local}-stock`} className="border border-gray-300 px-2 py-2 text-center text-sm">
-                                  <span className={localData.stock < 0 ? 'text-red-600 font-medium' : localData.stock === 0 ? 'text-yellow-600' : 'text-green-600'}>
-                                    {localData.stock}
-                                  </span>
+                    <tbody className="bg-white divide-y divide-slate-200">
+                      {products.map((product, index) => {
+                        const gainIndicator = getGainIndicator(product.porcentaje_ganancia_actual || 0);
+                        const GainIcon = gainIndicator.icon;
+                        
+                        return (
+                          <tr key={product.codigo} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-4">
+                              <Checkbox
+                                checked={selectedProducts.has(product.codigo)}
+                                onCheckedChange={() => toggleProductSelection(product.codigo)}
+                              />
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="space-y-1">
+                                <div className="font-mono text-sm text-slate-600">
+                                  {product.codigo}
+                                </div>
+                                <div className="font-medium text-slate-900 max-w-xs">
+                                  {product.nombre}
+                                </div>
+                                <Badge variant="outline" className="text-xs">
+                                  {product.categoria}
+                                </Badge>
+                              </div>
+                            </td>
+                            {summary.locals.map(local => {
+                              const localData = product.locales[local];
+                              const stockIndicator = localData ? getStockIndicator(localData.stock) : null;
+                              
+                              return (
+                                <td key={local} className="px-4 py-4 text-center border-l">
+                                  {localData ? (
+                                    <div className="space-y-2">
+                                      <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${stockIndicator.bg} ${stockIndicator.color}`}>
+                                        Stock: {localData.stock}
+                                      </div>
+                                      <div className="text-sm text-slate-600">
+                                        Costo: <span className="font-mono">${localData.costo_neto?.toFixed(2)}</span>
+                                      </div>
+                                      <div className="text-sm font-medium text-slate-900">
+                                        Venta: <span className="font-mono">${localData.precio_venta?.toFixed(2)}</span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="text-slate-400 text-sm">
+                                      Sin datos
+                                    </div>
+                                  )}
                                 </td>
-                                <td key={`${local}-costo`} className="border border-gray-300 px-2 py-2 text-right text-sm">
-                                  ${localData.costo_neto?.toFixed(2) || '0.00'}
-                                </td>
-                                <td key={`${local}-venta`} className="border border-gray-300 px-2 py-2 text-right text-sm font-medium">
-                                  ${localData.precio_venta?.toFixed(2) || '0.00'}
-                                </td>
-                              </>
-                            ) : (
-                              <>
-                                <td key={`${local}-stock`} className="border border-gray-300 px-2 py-2 text-center text-gray-400">-</td>
-                                <td key={`${local}-costo`} className="border border-gray-300 px-2 py-2 text-center text-gray-400">-</td>
-                                <td key={`${local}-venta`} className="border border-gray-300 px-2 py-2 text-center text-gray-400">-</td>
-                              </>
-                            );
-                          })}
-                          <td className="border border-gray-300 px-4 py-2 text-right text-sm">
-                            {product.porcentaje_ganancia_actual?.toFixed(2)}%
-                          </td>
-                          <td className="border border-gray-300 px-4 py-2 text-right text-sm font-medium">
-                            ${product.precio_sugerido_calculado?.toFixed(2)}
-                          </td>
-                        </tr>
-                      ))}
+                              );
+                            })}
+                            <td className="px-4 py-4 text-center border-l">
+                              <div className="space-y-2">
+                                <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${gainIndicator.bg} ${gainIndicator.color}`}>
+                                  <GainIcon className="h-4 w-4 mr-1" />
+                                  {product.porcentaje_ganancia_actual?.toFixed(1)}%
+                                </div>
+                                <div className="text-sm text-slate-600">
+                                  Sugerido: <span className="font-mono font-medium">${product.precio_sugerido_calculado?.toFixed(2)}</span>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -606,4 +755,4 @@ function App() {
   );
 }
 
-export default App;
+export default App
