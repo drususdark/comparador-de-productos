@@ -10,7 +10,7 @@
       "VITE_APP_ENV": "production"
     }
   },
-  "installCommand": "pnpm install",
+  "installCommand": "pnpm store prune && pnpm install",
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist"
 }
