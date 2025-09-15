@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label.jsx'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group.jsx'
 import { Slider } from '@/components/ui/slider.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
-import './App.css'
+import './index.css'
 
 function App() {
   const [files, setFiles] = useState([])
