@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run build:css && vite build",
-    "build:css": "./node_modules/.bin/tailwindcss -i ./src/styles.css -o ./dist/assets/index.css --minify",
+    "build:css": "npx tailwindcss -i ./src/styles.css -o ./dist/assets/index.css --minify",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "node postinstall.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
