@@ -9,7 +9,7 @@
     "build:css": "npx tailwindcss -i ./src/styles.css -o ./dist/assets/index.css --minify",
     "lint": "eslint .",
     "preview": "vite preview",
-    "postinstall": "node postinstall.js"
+    "postinstall": "node postinstall.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
