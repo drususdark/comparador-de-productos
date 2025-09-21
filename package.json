@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run build:css && vite build",
-    "build:css": "tailwindcss -i ./src/styles.css -o ./dist/assets/index.css --minify",
+    "build:css": "PATH=$(npm bin):$PATH tailwindcss -i ./src/styles.css -o ./dist/assets/index.css --minify",
     "lint": "eslint .",
     "preview": "vite preview",
     "postinstall": "node postinstall.cjs"
